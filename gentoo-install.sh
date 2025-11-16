@@ -3,9 +3,18 @@
 # Gentoo Linux Automated Installer
 # Comprehensive installation script for Gentoo Linux (CLI/minimal setup)
 # Supports multiple AMD64 systems with CPU auto-detection
+#
+# Optional companion script:
+#   If setup-desktop.sh is present in the same directory as this installer,
+#   it will be automatically copied to /root/ in the newly installed system.
+#   This allows for easy desktop environment setup after initial installation.
 ################################################################################
 
 set -Eeuo pipefail
+
+# Determine script directory (for finding companion scripts like setup-desktop.sh)
+SCRIPT_PATH="${BASH_SOURCE[0]:-$0}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "$SCRIPT_PATH")" >/dev/null 2>&1 && pwd -P)"
 
 # Logging setup
 readonly LOG="/var/log/gentoo-install-$(date +%Y%m%d_%H%M%S).log"
@@ -562,6 +571,19 @@ step "Preparing chroot environment..."
 
 info "Copying DNS configuration..."
 cp --dereference /etc/resolv.conf /mnt/gentoo/etc/
+
+# Copy setup-desktop.sh to target system if present
+if [ -f "${SCRIPT_DIR}/setup-desktop.sh" ]; then
+    info "Copying setup-desktop.sh to /mnt/gentoo/root/..."
+    if cp "${SCRIPT_DIR}/setup-desktop.sh" /mnt/gentoo/root/setup-desktop.sh; then
+        chmod +x /mnt/gentoo/root/setup-desktop.sh || warn "Could not make setup-desktop.sh executable"
+        info "setup-desktop.sh copied successfully"
+    else
+        warn "Failed to copy setup-desktop.sh; continuing installation"
+    fi
+else
+    info "setup-desktop.sh not found in ${SCRIPT_DIR}; skipping"
+fi
 
 info "Mounting pseudo-filesystems..."
 mount --types proc /proc /mnt/gentoo/proc
